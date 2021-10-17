@@ -1,0 +1,17 @@
+{
+    "name": "@cicolas/todo-cli",
+    "version": "1.0.0",
+    "description": "a command line software to create and manage your tasks of your project",
+    "author": "Cicolas_",
+    "main": "./bin/index.js",
+    "bin": {
+        "todo": "bin/index.js",
+        "todo-cli": "bin/index.js"
+    },
+    "scripts": {},
+    "license": "ISC",
+    "dependencies": {
+        "ansi": "^0.3.1",
+        "colors": "^1.4.0"
+    }
+}
