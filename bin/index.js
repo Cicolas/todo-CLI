@@ -7,6 +7,12 @@ readline.emitKeypressEvents(process.stdin);
 process.stdin.setRawMode(true);
 process.stdin.resume();
 
+////////////////////////
+
+const initialData = "# Todo\n\nA basic todo markdown file\n\n- [x] create a file"
+
+////////////////////////
+
 const colors = require('colors');
 var cursor = require('ansi')(process.stdout)
 cursor.hide()
@@ -66,14 +72,30 @@ function register() {
 }
 
 function setup() {
-    cursor.savePosition();
+    if (process.argv.length > 2) {
+        if (process.argv[2] == "init") {
+            fs.writeFile(path.join(process.cwd(), ".todo.md"), initialData, (err) => {
+                if (err) {
+                    throw err
+                }
+                process.exit()
+            })
+            return
+        }
+    }
+
     file = path.join(process.cwd(), ".todo.md")
     if (process.argv.length > 2) {
         file = path.join(process.cwd(), process.argv[2])
     }
     fs.readFile(file, function(err, data) {
         if (err) {
-            throw err;
+            cursor.show()
+            if (err.code == "ENOENT") {
+                console.log("file ".red + file.bold + " doesn't exist in this directory ".red);
+                process.exit()
+            }
+            throw err
         }
         fileData = data.toString()
         fileData = fileData.replace(/\r/g, "")
