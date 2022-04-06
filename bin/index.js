@@ -14,6 +14,7 @@ const initialData = "# Todo\n\nA basic todo markdown file\n\n- [x] create a file
 ////////////////////////
 
 const colors = require('colors');
+const { exit } = require('process');
 var cursor = require('ansi')(process.stdout)
 cursor.hide()
 
@@ -22,7 +23,8 @@ const a = readline.createInterface({
     output: process.stdout,
 })
 
-const title = "TODOS"
+let title = "TODOS"
+let description = ""
 let todos = []
 let file = ".todo.md"
 let fileData = ""
@@ -99,7 +101,11 @@ function setup() {
         }
         fileData = data.toString()
         fileData = fileData.replace(/\r/g, "")
-        linesArray = fileData.split("\n")
+        linesArray = fileData.split("\n").filter(v => v !== "");
+
+        title = linesArray[0].replace("#", "").trim();
+        description = linesArray[1].trim();
+        console.log(linesArray);
 
         linesArray = linesArray.filter(value =>
             (value.search(/- \[ \] /) != -1) ||
@@ -168,6 +174,9 @@ function save() {
 function printTodos() {
     console.clear()
     console.log(`---${title}---\n`.rainbow);
+    if (description) {
+        console.log(`${description}\n`.white);
+    }
 
     for (const v in todos) {
         let a = `[${todos[v].completed?"x": " "}] ${todos[v].name}`
