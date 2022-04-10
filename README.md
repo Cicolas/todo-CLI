@@ -27,15 +27,25 @@ Usage is very simple, all you need to do is run `todo-cli` or `todo` in any fold
 
 ## Commands
 
-the interface it's very simple, you control your selection using <kbd>Up</kbd>/<kbd>Down</kbd> and select with <kbd>Space</kbd>/<kbd>Enter</kbd>
+the interface it's very simple, you control your selection using <kbd>Up</kbd>/<kbd>Down</kbd> and select with <kbd>Space</kbd>/<kbd>Enter</kbd> and toggle mode with <kbd>left</kbd>/<kbd>right</kbd>
 
 ```bash
 ---TODOS---
 
+[complete-delete]
 > [x] publish in npm
 - [ ] refactor the code
 - [ ] accept aditional args(ex.: --delete, --clear)
 create a new todo
 save and exit
+delete all marked
 delete completed
 ```
+
+## Patch Notes
+
+- ver 1.1.0
+  - added -g flag for global todo files
+  - added "delete mode"
+    - you can toggle with <kbd>left</kbd>/<kbd>right</kbd>
+    - in delete mode you will mark the todos to delete 
