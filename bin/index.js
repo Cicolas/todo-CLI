@@ -23,6 +23,7 @@ const a = readline.createInterface({
     output: process.stdout,
 })
 
+let basePath = process.cwd();
 let title = "TODOS"
 let description = ""
 let todos = []
@@ -32,6 +33,7 @@ let linesArray = []
 let deleted = []
 let selected = 0
 let querrying = false
+let completeMode = true;
 
 function register() {
     process.stdin.on('keypress', (str, key) => {
@@ -52,44 +54,84 @@ function register() {
                 selected -= (selected - 1 < 0) ? 0 : 1;
                 printTodos()
             } else if (!querrying && key.name === "down") {
-                selected += (selected + 1 > todos.length + 2) ? 0 : 1;
+                selected += (selected + 1 > todos.length + 3) ? 0 : 1;
                 printTodos()
             } else if (!querrying && (key.name === "space" || key.name === "return")) {
                 if (selected < todos.length) {
-                    todos[selected].completed = !todos[selected].completed;
+                    if (completeMode)
+                        todos[selected].completed = !todos[selected].completed;
+                    else
+                        todos[selected].markedToDelete = !todos[selected].markedToDelete;
                     printTodos()
                 } else if (selected == todos.length) {
                     createTodo();
                 } else if (selected == todos.length + 1) {
                     save();
                 } else if (selected == todos.length + 2) {
+                    deleteMarked();
+                } else if (selected == todos.length + 3) {
                     deleteCompleted()
                 }
             } else if (querrying && key.name === "return") {
                 createTodo();
                 querrying = false
+            } else if (!querrying && key.name === "left") {
+                completeMode = true;
+                printTodos();
+            } else if (!querrying && key.name === "right") {
+                completeMode = false;
+                printTodos();
             }
         }
     });
 }
 
+async function initFile(pathName, initialD) {
+    if (!fs.existsSync(path.join(pathName))) {
+        fs.mkdirSync(path.join(pathName) + "/");
+    }
+
+    fs.writeFileSync(
+        path.join(pathName, ".todo.md"),
+        initialD,
+        (err) => {
+            if (err) throw err;
+        }
+    );
+    process.exit();
+}
+
 function setup() {
+    file = path.join(basePath, ".todo.md")
     if (process.argv.length > 2) {
-        if (process.argv[2] == "init") {
-            fs.writeFile(path.join(process.cwd(), ".todo.md"), initialData, (err) => {
-                if (err) {
-                    throw err
-                }
-                process.exit()
-            })
+        if (process.argv[2] === "init") {
+            if (!fs.existsSync(file)) {
+                initFile(basePath, initialData)
+            } else {
+                console.log("file ".yellow + file.bold + " already exists".yellow);
+                process.exit();
+            }
             return
+        }
+
+        if (process.argv[2] === "-g" || process.argv[2] === "--global") {
+            basePath = path.join(process.env.USERPROFILE, "/.todo-cli/");
+            if (process.argv.length > 3) {
+                if (process.argv[3] == "init") {
+                    initFile(
+                        basePath,
+                        "# Global Todo\n\nThis is your global todo markdown file\n\n- [x] create a file"
+                    )
+                    return;
+                }
+            }
+
+            file = path.join(basePath, process.argv.length > 3 ? process.argv[3] : ".todo.md");
+        } else {
+            file = path.join(basePath, process.argv[2])
         }
     }
 
-    file = path.join(process.cwd(), ".todo.md")
-    if (process.argv.length > 2) {
-        file = path.join(process.cwd(), process.argv[2])
-    }
     fs.readFile(file, function(err, data) {
         if (err) {
             cursor.show()
@@ -105,7 +147,6 @@ function setup() {
 
         title = linesArray[0].replace("#", "").trim();
         description = linesArray[1].trim();
-        console.log(linesArray);
 
         linesArray = linesArray.filter(value =>
             (value.search(/- \[ \] /) != -1) ||
@@ -174,17 +215,27 @@ function save() {
 function printTodos() {
     console.clear()
     console.log(`---${title}---\n`.rainbow);
-    if (description) {
+    if (description)
         console.log(`${description}\n`.white);
-    }
+
+    let mode =
+        "[".gray +
+        (completeMode ? "complete".green : "complete".gray) +
+        "-".gray +
+        (completeMode ? "delete".gray : "delete".red.bold.underline) +
+        "]".gray;
+    console.log(`${mode}`);
 
     for (const v in todos) {
         let a = `[${todos[v].completed?"x": " "}] ${todos[v].name}`
         a = v == selected ? a.bold : a;
 
-        if (todos[v].completed) {
+        if (todos[v].markedToDelete) {
+            a = a.red
+            console.log(`${v==selected?">": "-"} `.white + a);
+        } else if (todos[v].completed) {
             a = a.green
-            console.log(`${v==selected?">": "-"} `.white + a.green);
+            console.log(`${v==selected?">": "-"} `.white + a);
         } else {
             console.log(`${v==selected?">": "-"} `.white + a);
         }
@@ -198,13 +249,17 @@ function printTodos() {
     save = selected == todos.length + 1 ? save.bold : save;
     console.log(`${selected==todos.length+1?"> ": ""}`.white + save);
 
+    let deleteM = 'delete'.red + ' all marked '.gray
+    deleteM = selected == todos.length + 2 ? deleteM.bold : deleteM;
+    console.log(`${selected==todos.length+2?"> ": ""}`.white + deleteM);
+
     let deleteC = ' delete completed '
-    deleteC = selected == todos.length + 2 ? deleteC.bgRed.bold.white : deleteC.black.bgBlack;
-    console.log(`${selected==todos.length+2?"> ": ""}`.white + deleteC);
+    deleteC = selected == todos.length + 3 ? deleteC.bgRed.bold.white : deleteC.black.bgBlack;
+    console.log(`${selected==todos.length+3?"> ": ""}`.white + deleteC);
 }
 
 function addTodo(n, c = false, _isNew = false) {
-    todos.push({ name: n, completed: c, isNew: _isNew })
+    todos.push({ name: n, completed: c, isNew: _isNew, markedToDelete: false })
 }
 
 function createTodo() {
@@ -222,6 +277,13 @@ function createTodo() {
             cursor.hide()
         })
     }
+}
+
+function deleteMarked() {
+    deleted = todos.filter(v => v.markedToDelete)
+    todos = todos.filter(v => !v.markedToDelete)
+    selected = 0
+    printTodos()
 }
 
 function deleteCompleted() {
