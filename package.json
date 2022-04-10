@@ -21,7 +21,9 @@
         "todo": "bin/index.js",
         "todo-cli": "bin/index.js"
     },
-    "scripts": {},
+    "scripts": {
+        "test": ""
+    },
     "license": "MIT",
     "private": false,
     "dependencies": {
