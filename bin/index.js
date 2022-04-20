@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// deno-lint-ignore-file
 
 const path = require('path')
 const fs = require('fs');
@@ -9,7 +10,7 @@ process.stdin.resume();
 
 ////////////////////////
 
-const initialData = "# Todo\n\nA basic todo markdown file\n\n- [x] create a file"
+const initialData = "# Todo\n\nA basic todo markdown file\n\n- [x] create a file\n\ntodo-cli: https://www.npmjs.com/package/@cicolas/todo-cli"
 
 ////////////////////////
 
