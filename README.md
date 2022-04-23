@@ -44,6 +44,14 @@ delete completed
 
 ## Patch Notes
 
+- ver 1.1.3
+  - added -h flag for help
+    - it wont work for commands yet (like 'todo init -h')
+  - correct a bug where 'todo -g file.md' would load '.todo.md'
+- ver 1.1.2
+  - minor corrections
+- ver 1.1.1
+  - minor corrections
 - ver 1.1.0
   - added -g flag for global todo files
   - added "delete mode"
