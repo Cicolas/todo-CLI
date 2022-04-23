@@ -1,40 +1,106 @@
 #!/usr/bin/env node
 // deno-lint-ignore-file
-
+"use strict"
 const path = require('path')
 const fs = require('fs');
-const readline = require('readline');
-readline.emitKeypressEvents(process.stdin);
 process.stdin.setRawMode(true);
 process.stdin.resume();
-
-////////////////////////
-
-const initialData = "# Todo\n\nA basic todo markdown file\n\n- [x] create a file\n\ntodo-cli: https://www.npmjs.com/package/@cicolas/todo-cli"
-
-////////////////////////
 
 const colors = require('colors');
 const { exit } = require('process');
 var cursor = require('ansi')(process.stdout)
 cursor.hide()
 
+const readline = require('readline');
+readline.emitKeypressEvents(process.stdin);
 const a = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
 })
 
+//arg parsing
+////////////////////////
+
+const reservedWords = [
+    "-g", "--global",
+    "-h", "--help",
+    "init"
+]
+
+let argument = []
+let command = "";
+let config = [];
+
+function setupArg() {
+    argument = process.argv;
+    argument.shift()
+    argument.shift()
+
+    command = argument[0];
+    config = [...argument];
+    config.shift()
+}
+
+setupArg();
+
+// console.log(argument, command, config);
+
+//initialData
+////////////////////////
+
+const initialData = 
+"# Todo\n\nA basic todo markdown file\n\n" +
+"- [x] create a file\n\n" +
+"todo-cli: https://www.npmjs.com/package/@cicolas/todo-cli"
+
+const globalData = 
+"# Global Todo\n\nnThis is your global todo markdown file\n\n" +
+"- [x] create a file\n\n" +
+"todo-cli: https://www.npmjs.com/package/@cicolas/todo-cli"
+
+//vars
+////////////////////////
+
 let basePath = process.cwd();
 let title = "TODOS"
 let description = ""
 let todos = []
-let file = ".todo.md"
+let file = path.join(basePath, ".todo.md");
 let fileData = ""
 let linesArray = []
 let deleted = []
 let selected = 0
 let querrying = false
 let completeMode = true;
+
+//command line 
+////////////////////////
+
+const isGlobal = argument.includes("-g") || argument.includes("--global");
+
+if (isGlobal) {
+    basePath = path.join(process.env.USERPROFILE, "/.todo-cli/");
+}
+
+const fileName = argument.filter(value => !reservedWords.includes(value))[0]
+file = path.join(basePath, fileName??".todo.md");
+
+if (command === "-h" || command === "--help") {
+    showHelp();
+    process.exit();
+}
+
+if (argument.includes("init")) {
+    if (!fs.existsSync(file)) {
+        initFile(basePath, isGlobal?globalData:initialData);
+        console.log("file ".green + file.bold + " created!!!".green);
+        process.exit();
+    }
+    console.log("file ".yellow + file.bold + " already exists".yellow);
+    process.exit();
+}
+//main
+////////////////////////
 
 function register() {
     process.stdin.on('keypress', (str, key) => {
@@ -103,36 +169,6 @@ async function initFile(pathName, initialD) {
 }
 
 function setup() {
-    file = path.join(basePath, ".todo.md")
-    if (process.argv.length > 2) {
-        if (process.argv[2] === "init") {
-            if (!fs.existsSync(file)) {
-                initFile(basePath, initialData)
-            } else {
-                console.log("file ".yellow + file.bold + " already exists".yellow);
-                process.exit();
-            }
-            return
-        }
-
-        if (process.argv[2] === "-g" || process.argv[2] === "--global") {
-            basePath = path.join(process.env.USERPROFILE, "/.todo-cli/");
-            if (process.argv.length > 3) {
-                if (process.argv[3] == "init") {
-                    initFile(
-                        basePath,
-                        "# Global Todo\n\nThis is your global todo markdown file\n\n- [x] create a file"
-                    )
-                    return;
-                }
-            }
-
-            file = path.join(basePath, process.argv.length > 3 ? process.argv[3] : ".todo.md");
-        } else {
-            file = path.join(basePath, process.argv[2])
-        }
-    }
-
     fs.readFile(file, function(err, data) {
         if (err) {
             cursor.show()
@@ -150,8 +186,7 @@ function setup() {
         description = linesArray[1].trim();
 
         linesArray = linesArray.filter(value =>
-            (value.search(/- \[ \] /) != -1) ||
-            (value.search(/- \[x\] /) != -1)
+            (value.search(/- \[(x| )\] /) != -1)
         )
 
         for (let i = 0; i < linesArray.length; i++) {
@@ -292,6 +327,19 @@ function deleteCompleted() {
     todos = todos.filter(v => !v.completed)
     selected = 0
     printTodos()
+}
+
+function showHelp() {
+    const helpMsg = 
+    "---Todo-CLI---\n\n".rainbow +
+    "todo-cli is a command line software to create and manage your daily project tasks\n\n".white +
+    "usage guide:\n".grey +
+    "todo init           \t"+   "[--args]\t\t"+     "use to create a" + " ./.todo.md ".blue.bold + "file\n" +
+    "                    \t"+   " --global\t\t"+      "init at the global directory (per user) "+"'~/.todo-cli/.todo.md'\n".blue.bold +
+    "todo <relative-path>\t"+   "[--args]\t\t"+     "use to open a md file (if any argument was passed it will search for "+"'./todo.md'".blue.bold + ")\n" +
+    "                    \t"+   " --global\t\t"+      "open at the global directory (per user) "+"'~/.todo-cli/'".blue.bold
+
+    console.log(helpMsg);
 }
 
 setup()
