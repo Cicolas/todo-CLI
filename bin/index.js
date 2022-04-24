@@ -6,6 +6,7 @@ const fs = require('fs');
 process.stdin.setRawMode(true);
 process.stdin.resume();
 
+const generate = require('./scripts/generate').generate;
 const colors = require('colors');
 const { exit } = require('process');
 var cursor = require('ansi')(process.stdout)
@@ -24,7 +25,9 @@ const a = readline.createInterface({
 const reservedWords = [
     "-g", "--global",
     "-h", "--help",
-    "init"
+    "-o",
+    "init",
+    "generate"
 ]
 
 let argument = []
@@ -90,13 +93,80 @@ if (command === "-h" || command === "--help") {
     process.exit();
 }
 
-if (argument.includes("init")) {
-    if (!fs.existsSync(file)) {
-        initFile(basePath, isGlobal?globalData:initialData);
-        console.log("file ".green + file.bold + " created!!!".green);
+if (argument.includes("generate")) {
+    let _path = argument[argument.findIndex(value => value === "generate")+1];
+    if (reservedWords.includes(_path)) _path = null;
+    if (_path) file = ".todo.md";
+    let realPath = path.join(basePath, _path??".");
+
+    if (process.platform === "win32" && _path.search(/^[A-Z]:/) >= 0) 
+        realPath = path.normalize(_path);
+
+    if (argument.includes("-o")) {
+        const f = argument[argument.findIndex(value => value === "-o")+1]
+        if (reservedWords.includes(f)) f = null;
+
+        if (!f) {
+            console.log("no file passed to '".red + "-o".grey + "' argument".red);
+            process.exit();
+        }
+        file = path.join(basePath, f);
+    }
+
+    const todos = generate(realPath);
+
+    if (todos.length <= 0) {
+        console.log("0 todos was found in '".yellow + realPath.bold + "'".yellow);
         process.exit();
     }
-    console.log("file ".yellow + file.bold + " already exists".yellow);
+
+    if (!fs.existsSync(file)) {
+        initFile(basePath, isGlobal?globalData:initialData, file);
+        console.log("file '".green + file.bold + "' created successfully".green);
+    }
+
+    try{
+        fileData = fs.readFileSync(file, {
+            encoding: "utf8",
+            flag: "r",
+        }).replace(/\r/g, "");
+        linesArray = fileData.split("\n").filter(v => v !== "");
+        linesArray = linesArray.filter(value =>
+            (value.search(/- \[(x| )\] /) != -1)
+        )
+    }catch (e){
+        if (e.code === "ENOENT") {
+            console.log("no file '".red + file.bold + "' found".red);
+        }
+    }
+
+    for (let i = 0; i < linesArray.length; i++) {
+        const v = linesArray[i];
+        const value = v.substring(v.search(/\[/) + 1, v.search(/\]/))
+        const name = v.substring(v.search(/\]/) + 2, v.length)
+        addTodo(name, value == "x" ? true : false)
+    }
+
+    console.log(todos.length+" todos was found in '".green + realPath.bold + "'".green);
+    todos.forEach(value => {
+        addTodo(value, false, true);
+
+        console.log("- [ ] " + value);
+    });
+
+    save();
+}
+
+if (argument.includes("init")) {
+    file = argument[argument.findIndex(value => value === "init")+1];
+    if (reservedWords.includes(file)) file = null;
+
+    if (!fs.existsSync(file??".todo.md")) {
+        initFile(basePath, isGlobal?globalData:initialData, file??".todo.md");
+        console.log("file ".green + (file??".todo.md").bold + " created!!!".green);
+        process.exit();
+    }
+    console.log("file ".yellow + (file??".todo.md").bold + " already exists".yellow);
     process.exit();
 }
 //main
@@ -153,19 +223,18 @@ function register() {
     });
 }
 
-async function initFile(pathName, initialD) {
+async function initFile(pathName, initialD, name=".todo.md") {
     if (!fs.existsSync(path.join(pathName))) {
         fs.mkdirSync(path.join(pathName) + "/");
     }
 
     fs.writeFileSync(
-        path.join(pathName, ".todo.md"),
+        path.join(pathName, name),
         initialD,
         (err) => {
             if (err) throw err;
         }
     );
-    process.exit();
 }
 
 function setup() {
@@ -334,10 +403,10 @@ function showHelp() {
     "---Todo-CLI---\n\n".rainbow +
     "todo-cli is a command line software to create and manage your daily project tasks\n\n".white +
     "usage guide:\n".grey +
-    "todo init           \t"+   "[--args]\t\t"+     "use to create a" + " ./.todo.md ".blue.bold + "file\n" +
-    "                    \t"+   " --global\t\t"+      "init at the global directory (per user) "+"'~/.todo-cli/.todo.md'\n".blue.bold +
-    "todo <relative-path>\t"+   "[--args]\t\t"+     "use to open a md file (if any argument was passed it will search for "+"'./todo.md'".blue.bold + ")\n" +
-    "                    \t"+   " --global\t\t"+      "open at the global directory (per user) "+"'~/.todo-cli/'".blue.bold
+    "todo init <relative-path>\t"+   "[--args]\t\t"+     "use to create a" + " ./.todo.md ".blue.bold + "file\n" +
+    "                         \t"+   " --global\t\t"+      "init at the global directory (per user) "+"'~/.todo-cli/.todo.md'\n".blue.bold +
+    "todo <relative-path>     \t"+   "[--args]\t\t"+     "use to open a md file (if any argument was passed it will search for "+"'./todo.md'".blue.bold + ")\n" +
+    "                         \t"+   " --global\t\t"+      "open at the global directory (per user) "+"'~/.todo-cli/'".blue.bold
 
     console.log(helpMsg);
 }

@@ -1,0 +1,10 @@
+LICENSE
+package.json
+package-lock.json
+README.md
+.gitignore
+.todo.md
+.git
+.vscode
+.vscode/
+node_modules/
