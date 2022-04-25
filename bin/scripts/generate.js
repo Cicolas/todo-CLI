@@ -1,6 +1,7 @@
 const path = require('path')
 const fs = require('fs');
 
+const ignoreErrors = false;
 const todos = []
 const todoIgnore = fs.readFileSync(path.join(__dirname, ".todoignore"), {
     encoding: "utf8",
@@ -14,10 +15,11 @@ function getAllInFolder(staticPath){
         files: []
     }
 
-    fs.readdirSync(staticPath).forEach(
-        (file) => {
+    fs.readdirSync(staticPath, { withFileTypes: true }).forEach(
+        (_file) => {
+            const file = _file.name;
             if (!checkIgnore(staticPath, file)) {
-                if (file.indexOf(".") > -1) {
+                if (_file.isFile()) {
                     try{
                         files.files.push({
                             type: "file",
@@ -27,13 +29,9 @@ function getAllInFolder(staticPath){
                                 flag: "r",
                             }),
                         });
-                    } catch(e ) {
-                        if (e.code === "EISDIR") {
-                            console.log("file ".yellow + file.bold + " read permission denied ".yellow);
-                        }else{
-                            throw e
-                        }
-                        return
+                    } catch(e) {
+                        if (ignoreErrors) console.log(e.code.yellow + file.bold);
+                        else throw e
                     }
                 }else {
                     files.files.push(getAllInFolder(path.join(staticPath, file)));
@@ -52,6 +50,7 @@ function getAllTodoInFolder(obj) {
         });
 
     if (obj.type === "file") {
+        // console.log(obj.name, filterAllTodo(obj.data));
         filterAllTodo(obj.data)?.forEach(value => todos.push(value));
     }
 }
@@ -75,12 +74,16 @@ function checkIgnore(_path, name) {
         .map((value) => value + '/');
     pathParts.pop()
 
-    pathParts.forEach(value => {
+    for (let i = 0; i < pathParts.length; i++) {
+        const value = pathParts[i]
         return todoIgnore.includes(value);
-    })
+    }
 }
 
 module.exports = {
+    ignoreErrors: () => {
+        ignoreErrors = true;
+    },
     generate: (_path) => {
         getAllTodoInFolder(getAllInFolder(_path));
         return todos;

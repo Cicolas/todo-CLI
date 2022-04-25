@@ -3,8 +3,13 @@ package.json
 package-lock.json
 README.md
 .gitignore
+.github
 .todo.md
 .git
-.vscode
 .vscode/
 node_modules/
+Makefile
+License
+.bin
+CREDITS
+

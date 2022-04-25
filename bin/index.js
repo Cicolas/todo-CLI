@@ -6,7 +6,7 @@ const fs = require('fs');
 process.stdin.setRawMode(true);
 process.stdin.resume();
 
-const generate = require('./scripts/generate').generate;
+const generate = require('./scripts/generate');
 const colors = require('colors');
 const { exit } = require('process');
 var cursor = require('ansi')(process.stdout)
@@ -99,9 +99,12 @@ if (argument.includes("generate")) {
     if (_path) file = ".todo.md";
     let realPath = path.join(basePath, _path??".");
 
-    if (process.platform === "win32" && _path.search(/^[A-Z]:/) >= 0) 
+    if (process.platform === "win32" && _path?.search(/^[A-Z]:/) >= 0) 
         realPath = path.normalize(_path);
 
+    if (argument.includes("--ignore")) {
+        generate.ignoreErrors();
+    }
     if (argument.includes("-o")) {
         const f = argument[argument.findIndex(value => value === "-o")+1]
         if (reservedWords.includes(f)) f = null;
@@ -110,23 +113,23 @@ if (argument.includes("generate")) {
             console.log("no file passed to '".red + "-o".grey + "' argument".red);
             process.exit();
         }
-        file = path.join(basePath, f);
+        file = f;
     }
 
-    const todos = generate(realPath);
+    const todos = generate.generate(realPath);
 
     if (todos.length <= 0) {
         console.log("0 todos was found in '".yellow + realPath.bold + "'".yellow);
         process.exit();
     }
 
-    if (!fs.existsSync(file)) {
-        initFile(basePath, isGlobal?globalData:initialData, file);
+    if (!fs.existsSync(path.join(basePath, file))) {
+        initFile(basePath, isGlobal?globalData:initialData, file??".todo.md");
         console.log("file '".green + file.bold + "' created successfully".green);
     }
 
     try{
-        fileData = fs.readFileSync(file, {
+        fileData = fs.readFileSync(path.join(basePath, file), {
             encoding: "utf8",
             flag: "r",
         }).replace(/\r/g, "");
@@ -162,7 +165,7 @@ if (argument.includes("init")) {
     if (reservedWords.includes(file)) file = null;
 
     if (!fs.existsSync(file??".todo.md")) {
-        initFile(basePath, isGlobal?globalData:initialData, file??".todo.md");
+        initFile('', isGlobal?globalData:initialData, file??".todo.md");
         console.log("file ".green + (file??".todo.md").bold + " created!!!".green);
         process.exit();
     }
@@ -403,10 +406,15 @@ function showHelp() {
     "---Todo-CLI---\n\n".rainbow +
     "todo-cli is a command line software to create and manage your daily project tasks\n\n".white +
     "usage guide:\n".grey +
-    "todo init <relative-path>\t"+   "[--args]\t\t"+     "use to create a" + " ./.todo.md ".blue.bold + "file\n" +
-    "                         \t"+   " --global\t\t"+      "init at the global directory (per user) "+"'~/.todo-cli/.todo.md'\n".blue.bold +
-    "todo <relative-path>     \t"+   "[--args]\t\t"+     "use to open a md file (if any argument was passed it will search for "+"'./todo.md'".blue.bold + ")\n" +
-    "                         \t"+   " --global\t\t"+      "open at the global directory (per user) "+"'~/.todo-cli/'".blue.bold
+    "todo <relative-path> "+               "[-g]\t\t"+     "open the given file (default: "+ "'./.todo.md'".blue.bold + ")\n\n" +
+    "todo init <relative-path> "+          "[-g]\t\t"+     "create a todo-cli .md file (default: "+ "'./.todo.md'".blue.bold + ")\n\n" +
+    "[BETA]\n".grey +
+    "todo generate <relative-path> "+      "[-g, -o,\t"+   "generate a todo by getting all " + "'\/\/TODO :'".yellow + " in files of given directory\n" +
+    "                              "+      " --ignore]\n\n"+
+    "flags:\n".grey +
+    "-g/--global                           \t" +           "use global path " + "'~/.todo-cli/'".green + " instead of default\n" +
+    "-o <path>                             \t" +           "use to set the output file (default: "+ "'./.todo.md'".blue.bold + ")\n" +
+    "--ignore                              \t" +           "ignore 'todo generate' errors while reading files\n"
 
     console.log(helpMsg);
 }
