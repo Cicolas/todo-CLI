@@ -96,15 +96,16 @@ if (command === "-h" || command === "--help") {
 if (argument.includes("generate")) {
     let _path = argument[argument.findIndex(value => value === "generate")+1];
     if (reservedWords.includes(_path)) _path = null;
-    if (_path) file = ".todo.md";
+    if (_path) file = null;
     let realPath = path.join(basePath, _path??".");
 
-    if (process.platform === "win32" && _path?.search(/^[A-Z]:/) >= 0) 
+    // console.log("paths:", _path, file, realPath);
+
+    if (process.platform === "win32" && _path?.search(/^[A-Z]:/) > -1) 
         realPath = path.normalize(_path);
 
-    if (argument.includes("--ignore")) {
-        generate.ignoreErrors();
-    }
+    if (argument.includes("--ignore")) generate.ignoreErrors();
+
     if (argument.includes("-o")) {
         const f = argument[argument.findIndex(value => value === "-o")+1]
         if (reservedWords.includes(f)) f = null;
@@ -113,7 +114,7 @@ if (argument.includes("generate")) {
             console.log("no file passed to '".red + "-o".grey + "' argument".red);
             process.exit();
         }
-        file = f;
+        file = path.join(basePath, f);
     }
 
     const todos = generate.generate(realPath);
@@ -123,13 +124,16 @@ if (argument.includes("generate")) {
         process.exit();
     }
 
-    if (!fs.existsSync(path.join(basePath, file))) {
-        initFile(basePath, isGlobal?globalData:initialData, file??".todo.md");
+    if (!file) file = path.join(basePath, ".todo.md")
+
+    if (!fs.existsSync(file)) {
+        initFile("", isGlobal?globalData:initialData, file);
         console.log("file '".green + file.bold + "' created successfully".green);
     }
 
-    try{
-        fileData = fs.readFileSync(path.join(basePath, file), {
+    try
+    {
+        fileData = fs.readFileSync(file, {
             encoding: "utf8",
             flag: "r",
         }).replace(/\r/g, "");
@@ -137,9 +141,10 @@ if (argument.includes("generate")) {
         linesArray = linesArray.filter(value =>
             (value.search(/- \[(x| )\] /) != -1)
         )
-    }catch (e){
-        if (e.code === "ENOENT") {
-            console.log("no file '".red + file.bold + "' found".red);
+    }catch(e){
+        if (e.code === "EISDIR") {
+            console.log("can't read a folder. Check if '".red + file.bold + "' is a folder".red);
+            proccess.exit()  
         }
     }
 
@@ -147,14 +152,13 @@ if (argument.includes("generate")) {
         const v = linesArray[i];
         const value = v.substring(v.search(/\[/) + 1, v.search(/\]/))
         const name = v.substring(v.search(/\]/) + 2, v.length)
-        addTodo(name, value == "x" ? true : false)
+        addTodo(name, value == "x", false)
     }
 
     console.log(todos.length+" todos was found in '".green + realPath.bold + "'".green);
     todos.forEach(value => {
-        addTodo(value, false, true);
-
-        console.log("- [ ] " + value);
+        const text = value[0] + ": " + value[1];
+        if (addTodo(text, false, true)) console.log("- [ ] " + text);
     });
 
     save();
@@ -367,7 +371,13 @@ function printTodos() {
 }
 
 function addTodo(n, c = false, _isNew = false) {
+    if (todos.find(value => value.name === n) && _isNew) {
+        console.log("todo ".yellow + n + " already exists".yellow);
+        return false;
+    }
+    
     todos.push({ name: n, completed: c, isNew: _isNew, markedToDelete: false })
+    return true;
 }
 
 function createTodo() {
