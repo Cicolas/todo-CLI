@@ -1,6 +1,6 @@
 {
     "env": {
-        "browser": true,
+        "browser": false,
         "commonjs": true,
         "es2021": true
     },
@@ -10,10 +10,12 @@
     },
     "globals": {
         "process": false,
-        "__dirname": false
+        "__dirname": false,
+        "console": false
     },
     "rules": {
         "semi":"warn",
-        "no-var": 1
+        "no-var": 1,
+        "no-unused-vars": "warn"
     }
 }

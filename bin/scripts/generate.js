@@ -6,7 +6,11 @@ const todos = [];
 const todoIgnore = fs.readFileSync(path.join(__dirname, ".todoignore"), {
     encoding: "utf8",
     flag: "r",
-}).replace(/\r/g, "").split("\n");
+})
+.replace(/\r/g, "")
+.split("\n")
+.map(value => value.toLowerCase())
+.filter(value => !value.startsWith("#"));
 
 //TODO: add folder path to file
 function getAllInFolder(staticPath){
@@ -15,11 +19,12 @@ function getAllInFolder(staticPath){
         path: path.normalize(staticPath),
         files: []
     };
-    
-    fs.readdirSync(staticPath, { withFileTypes: true }).forEach(
-        (_file) => {
-            const file = _file.name;
-            if (checkIgnore(staticPath, file)) return files;
+
+    const dir = fs.readdirSync(staticPath, { withFileTypes: true });
+    for (let i = 0; i < dir.length; i++) {
+        const _file = dir[i];
+        const file = _file.name;
+        if (!checkIgnore(staticPath, file)) {
             if (_file.isFile()) {
                 try{
                     files.files.push({
@@ -38,7 +43,7 @@ function getAllInFolder(staticPath){
                 files.files.push(getAllInFolder(path.join(staticPath, file)));
             }
         }
-    );
+    }
 
     return files;
 }
@@ -50,7 +55,6 @@ function getAllTodoInFolder(obj) {
         });
 
     if (obj.type === "file") {
-        // console.log(obj.name, filterAllTodo(obj.data));
         filterAllTodo(obj.data)?.forEach(value => todos.push([obj.name, value]));
     }
 }
@@ -75,10 +79,12 @@ function checkIgnore(_path, name) {
         .map((value) => value + '/');
     pathParts.pop();
 
+    let include = false;
     for (let i = 0; i < pathParts.length; i++) {
         const value = pathParts[i];
-        return todoIgnore.includes(value);
+        include = include?true:todoIgnore.includes(value.toLowerCase());
     }
+    return include;
 }
 
 module.exports = {

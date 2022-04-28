@@ -25,6 +25,7 @@ const a = readline.createInterface({
 const reservedWords = [
     "-g", "--global",
     "-h", "--help",
+    "--ignore",
     "-o",
     "init",
     "generate"
