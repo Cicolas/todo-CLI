@@ -1,6 +1,6 @@
 {
     "name": "@cicolas/todo-cli",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "a command line software to create and manage your tasks of your project",
     "author": "Cicolas_",
     "main": "./bin/index.js",
