@@ -25,6 +25,13 @@ Usage is very simple, all you need to do is run `todo-cli` or `todo` in any fold
 > todo-cli <file_relative_path>
 ```
 
+you can generate a todo file based on yours //TODO: comments through files. 
+
+```bash
+> todo-cli generate
+> todo-cli generate . -o filename.md
+```
+
 ## Commands
 
 the interface it's very simple, you control your selection using <kbd>Up</kbd>/<kbd>Down</kbd> and select with <kbd>Space</kbd>/<kbd>Enter</kbd> and toggle mode with <kbd>left</kbd>/<kbd>right</kbd>
@@ -44,14 +51,13 @@ delete completed
 
 ## Patch Notes
 
+- ver 1.2
+  - added generate command
+    - it generate a todo based on //TODO: in your files
 - ver 1.1.3
   - added -h flag for help
     - it wont work for commands yet (like 'todo init -h')
   - correct a bug where 'todo -g file.md' would load '.todo.md'
-- ver 1.1.2
-  - minor corrections
-- ver 1.1.1
-  - minor corrections
 - ver 1.1.0
   - added -g flag for global todo files
   - added "delete mode"
