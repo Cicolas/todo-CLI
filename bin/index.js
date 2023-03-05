@@ -1,4 +1,16 @@
 #!/usr/bin/env node
+
+
+// Feito por: Nícolas dos Santos Carvalho (2022-2023)
+
+// TODO-CLI é um software de linha de comando para facilitar a criacao e manuseio
+// de a fazeres para sua aplicação
+
+// TODO: code-review insano
+// * Esse código está muito ruim, quem sabe algum dia eu de um tapa nele, mas
+// * até esse dia chegar se contente com essa bagunça
+// "Tudo que era para ser simples é complexo, e o complexo se torna simples"
+
 /* eslint-disable no-useless-escape */
 "use strict";
 const path = require('path');
@@ -33,16 +45,23 @@ Array.prototype.insert = function(index, value) {
 };
 
 class TodoItem {
-    name;
-    completed;
-    isNew;
-    markedToDelete;
+    name; completed; isNew; markedToDelete;
 
     constructor(obj) {
         this.name = obj.name;
         this.completed = obj.completed;
         this.isNew = obj.isNew;
         this.markedToDelete = obj.markedToDelete;
+    }
+}
+
+class RecentItem {
+    path; last; id; markedToDelete;
+
+    constructor(obj) {
+        this.path = obj.path;
+        this.last = obj.last;
+        this.id = obj.id;
     }
 }
 
@@ -57,7 +76,8 @@ const reservedWords = [
     "init",
     "generate",
     "hub",
-    "--sort"
+    "--sort",
+    "-d", "--detailed"
 ];
 
 let argument = [];
@@ -105,7 +125,13 @@ let deleted = [];
 let selected = 0;
 let querrying = false;
 let completeMode = true;
-let recentFiles= [];
+let recentFiles = [];
+let mode = 'TODO';
+
+let displayList = {
+    'TODO': printTodos,
+    'HUB': printHub
+};
 
 //command line 
 ////////////////////////
@@ -172,7 +198,7 @@ if (argument.includes("generate")) {
         linesArray = linesArray.filter(value =>
             (value.search(/- \[(x| )\] /) != -1)
         );
-    }catch(e){
+    } catch(e) {
         if (e.code === "EISDIR") {
             console.log("can't read a folder. Check if '".red + file.bold + "' is a folder".red);
             process.exit();
@@ -192,7 +218,7 @@ if (argument.includes("generate")) {
         if (addTodo(text, false, true)) console.log("- [ ] " + text);
     });
 
-    save();
+    saveTodo();
 }
 
 if (argument.includes("init")) {
@@ -209,65 +235,120 @@ if (argument.includes("init")) {
 }
 
 if (argument.includes("hub")) {
+    mode = 'HUB';
+
     openRecentFile();
     if (argument.includes("--sort"))
         sortFiles();
-    //TODO: Implemetar o hub
-    process.exit();
+        
+    printHub();
 }
 //main
 ////////////////////////
 
 //TODO: melhorar implementação do register 
-function register() {
-    process.stdin.on('keypress', (str, key) => {
-        if (key.ctrl) {
-            if (key.name === "c") {
-                save();
-            }
-            if (key.name === "up") {
-                selected = 0;
-                printTodos();
-            }
-            if (key.name === "down") {
-                selected = todos.length + 1;
-                printTodos();
-            }
-        } else {
-            if (!querrying && key.name === "up") {
-                selected -= (selected - 1 < 0) ? 0 : 1;
-                printTodos();
-            } else if (!querrying && key.name === "down") {
-                selected += (selected + 1 > todos.length + 3) ? 0 : 1;
-                printTodos();
-            } else if (!querrying && (key.name === "space" || key.name === "return")) {
-                if (selected < todos.length) {
-                    if (completeMode)
-                        todos[selected].completed = !todos[selected].completed;
-                    else
-                        todos[selected].markedToDelete = !todos[selected].markedToDelete;
-                    printTodos();
-                } else if (selected == todos.length) {
-                    createTodo();
-                } else if (selected == todos.length + 1) {
-                    save();
-                } else if (selected == todos.length + 2) {
-                    deleteMarked();
-                } else if (selected == todos.length + 3) {
-                    deleteCompleted();
+function register(str, key) {
+    if (querrying) {
+        if (key.name === "return" && mode === "TODO") {
+            createTodo();
+            querrying = false; 
+        }
+
+        return;
+    }
+
+    // console.log(key);
+    // process.exit();
+    if (key.ctrl) {
+        if (key.name === "c") {
+            if (mode === "HUB") writeRecentFile();
+            else if (mode === "TODO") saveTodo();
+        } else if (key.name === "up") {
+            selected = 0;
+            displayList[mode]();
+        } else if (key.name === "down") {
+            if (mode === "HUB") selected = recentFiles.length + 1;
+            else if (mode === "TODO") selected = todos.length + 1;
+            displayList[mode]();
+        }
+
+        return;
+    }
+
+    if (key.name === "up") {
+        selected -= (selected - 1 < 0) ? 0 : 1;
+        displayList[mode]();
+    } else if (key.name === "down") {
+        let limit = 0;
+        if (mode === "HUB") limit += recentFiles.length + 1;
+        if (mode === "TODO") limit = todos.length + 3;
+
+        selected += selected + 1 > limit ? 0 : 1;
+        displayList[mode]();
+    } else if (key.name === "space" || key.name === "return" || key.name === "enter") {
+        if (mode === "HUB") {
+            const actions = [
+                () => {
+                    writeRecentFile;
+                    process.exit(); 
+                },
+                () => {
+                    recentFiles = deleteMarked(recentFiles);
+                    printHub();
+                },
+            ];
+
+            if (selected < recentFiles.length) {
+                // todo: open with explore or todo-cli
+                if (completeMode) { //open mode
+                    if (key.name === "enter") {
+                        const basename = path.dirname(recentFiles[selected].path);
+                        require("child_process").exec(
+                            `explorer.exe "${basename}"`
+                        );
+                    } else {
+                        file = recentFiles[selected].path;
+                        recentFiles.length = 0;
+                        setup();
+                        mode = "TODO";
+                    }
                 }
-            } else if (querrying && key.name === "return") {
-                createTodo();
-                querrying = false;
-            } else if (!querrying && key.name === "left") {
-                completeMode = true;
+                else {
+                    recentFiles[selected].markedToDelete = !recentFiles[selected].markedToDelete;
+                }
+            
+                printHub();
+            } else {
+                actions[selected-recentFiles.length]();
+            }
+        } else if (mode === "TODO") {
+            const actions = [
+                createTodo,
+                saveTodo,
+                () => {
+                    todos = deleteMarked(todos);
+                    printTodos();
+                },
+                () => {
+                    todos = deleteCompleted();
+                    printTodos();
+                },
+            ];
+            
+            if (selected < todos.length) {
+                if (completeMode)
+                    todos[selected].completed = !todos[selected].completed;
+                else
+                    todos[selected].markedToDelete = !todos[selected].markedToDelete;
                 printTodos();
-            } else if (!querrying && key.name === "right") {
-                completeMode = false;
-                printTodos();
+            } else {
+                actions[selected-todos.length]();
             }
         }
-    });
+    } else if (key.name === "right" || key.name === "left") {
+        completeMode = key.name==="left";
+        displayList[mode]();
+    }
 }
 
 async function initFile(pathName, initialD, name=".todo.md") {
@@ -285,10 +366,6 @@ async function initFile(pathName, initialD, name=".todo.md") {
 }
 
 function setup() {
-    openRecentFile();
-    addFileToRecent();
-    writeRecentFile();
-
     fs.readFile(file, function(err, data) {
         if (err) {
             cursor.show();
@@ -298,6 +375,14 @@ function setup() {
             }
             throw err;
         }
+
+        openRecentFile();
+        addFileToRecent();
+        // manipulacao do historico
+        if(mode === "TODO") {
+            writeRecentFile();
+        }
+        
         fileData = data.toString();
         fileData = fileData.replace(/\r/g, "");
         linesArray = fileData.split("\n").filter(v => v !== "");
@@ -326,7 +411,7 @@ function convertTodo(t) {
     return a;
 }
 
-function save() {
+function saveTodo() {
     for (let i = 0; i < todos.length; i++) {
         const v = todos[i];
 
@@ -338,7 +423,7 @@ function save() {
         } else {
             for (let i = 0; i < linesArray.length; i++) {
                 const value = linesArray[i];
-                if (convertTodo(value).name == v.name && !(deleted.find(x => x.name == convertTodo(value).name))) {
+                if (convertTodo(value).name === v.name && !(deleted.find(x => x.name === convertTodo(value).name))) {
                     // console.log(value);
                     fileData = fileData.replace(value, a);
                 }
@@ -353,7 +438,7 @@ function save() {
 
             for (let i = 0; i < linesArray.length; i++) {
                 const value = linesArray[i];
-                if (convertTodo(value).name == v.name) {
+                if (convertTodo(value).name === v.name) {
                     fileData = fileData.replace("\n" + value, "");
                 }
             }
@@ -413,6 +498,56 @@ function printTodos() {
     console.log(`${selected==todos.length+3?"> ": ""}`.white + deleteC);
 }
 
+function printHub() {
+    const shortPath = (pathstr) => {
+        const {base, dir, root} = path.parse(pathstr);
+        const lastFolder = path.basename(dir);
+        
+        return path.join(root, '...', lastFolder, base);
+    };
+
+    console.clear();
+    console.log(`---HUB---\n`.rainbow);
+    console.log(`Arquivos de Todos acessados recentemente\n`.white);
+    
+    let mode =
+        "[".gray +
+        (completeMode ? "open".blue : "open".gray) +
+        "-".gray +
+        (completeMode ? "delete".gray : "delete".red.bold.underline) +
+        "]".gray;
+    console.log(`${mode}`);
+
+    for (const item of recentFiles) {
+        if (item instanceof RecentItem) {
+            const date = new Date(item.last);
+            let a =
+                `${item.id + 1}.\t` +
+                date.toDateString().grey +
+                "\t";
+            let path = (selected === item.id ? item.path : shortPath(item.path));
+                
+            a = item.id == selected ? a.bold : a;
+            path = item.id == selected ? path.bold : path;
+
+            if (item.markedToDelete) {
+                a = a.red; 
+                path = path.red; 
+            }
+
+            console.log(a+path);
+        }
+    }
+
+    let save = 'save and '.grey + 'exit'.red;
+    save = selected == recentFiles.length ? save.bold : save;
+    console.log(`${selected==recentFiles.length?"> ": ""}`.white + save);
+
+    let deleteM = 'delete'.red + ' all marked '.gray;
+    deleteM = selected == recentFiles.length+1 ? deleteM.bold : deleteM;
+    console.log(`${selected==recentFiles.length+1?"> ": ""}`.white + deleteM);
+}
+
 function addTodo(n, c = false, _isNew = false) {
     if (todos.find(value => value.name === n) && _isNew) {
         console.log("todo ".yellow + n + " already exists".yellow);
@@ -442,18 +577,20 @@ function createTodo() {
     }
 }
 
-function deleteMarked() {
-    deleted = todos.filter(v => v.markedToDelete);
-    todos = todos.filter(v => !v.markedToDelete);
+function deleteMarked(arr) {
+    if (mode === "TODO")
+        deleted = arr.filter(v => v.markedToDelete);
+    arr = arr.filter(v => !v.markedToDelete);
     selected = 0;
-    printTodos();
+    return arr;
 }
 
-function deleteCompleted() {
-    deleted = todos.filter(v => v.completed);
-    todos = todos.filter(v => !v.completed);
+function deleteCompleted(arr) {
+    if (mode === "TODO")
+        deleted = arr.filter(v => v.completed);
+    arr = arr.filter(v => !v.completed);
     selected = 0;
-    printTodos();
+    return arr;
 }
 
 function showHelp() {
@@ -466,6 +603,7 @@ function showHelp() {
     "[BETA]\n".grey +
     "todo generate <relative-path> "+      "[-g, -o,\t"+   "generate a todo by getting all " + "'\/\/TODO :'".yellow + " in files of given directory\n" +
     "                              "+      " --ignore]\n\n"+
+    "todo hub "+                                           "\t\t\t\topen a list of all your recents todos files\n\n" +
     "flags:\n".grey +
     "-g/--global                           \t" +           "use global path " + "'~/.todo-cli/'".green + " instead of default\n" +
     "-o <path>                             \t" +           "use to set the output file (default: "+ "'./.todo.md'".blue.bold + ")\n" +
@@ -475,12 +613,24 @@ function showHelp() {
 }
 
 function openRecentFile() {
-    recentFiles = JSON.parse(
+    recentFiles = [];
+    const recentJSON = JSON.parse(
         fs.readFileSync(path.join(__dirname, "./recent.json"), {
             encoding: "utf8",
             flag: "r",
         })
     );
+
+    for (const i in recentJSON) {
+        if (recentJSON[i].path && recentJSON[i].last) {
+            const recentObj = new RecentItem({
+                id: +i, 
+                path: recentJSON[i].path,
+                last: recentJSON[i].last
+            });
+            recentFiles.push(recentObj);
+        }
+    }
 }
 
 function writeRecentFile() {
@@ -536,5 +686,7 @@ function sortingRecentList(arr, f) {
     return arr;
 }
 
-setup();
-register();
+if (mode == "TODO") {
+    setup();
+}
+process.stdin.on('keypress', register);
