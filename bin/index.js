@@ -3,8 +3,8 @@
 "use strict";
 const path = require('path');
 const fs = require('fs');
-process.stdin.setRawMode(true);
-process.stdin.resume();
+// process.stdin.setRawMode(true);
+// process.stdin.resume();
 
 const generate = require('./scripts/generate');
 // eslint-disable-next-line no-unused-vars
@@ -19,6 +19,33 @@ const a = readline.createInterface({
     output: process.stdout,
 });
 
+//classes and prototypes
+////////////////////////
+Array.prototype.insert = function(index, value) {
+    this[index] = [value, this[index]];
+    let f = this.flat();
+
+    for (let i = 0; i < this.length; i++) {
+        this[i] = f[i];
+    }
+
+    this.push(f[this.length]);
+};
+
+class TodoItem {
+    name;
+    completed;
+    isNew;
+    markedToDelete;
+
+    constructor(obj) {
+        this.name = obj.name;
+        this.completed = obj.completed;
+        this.isNew = obj.isNew;
+        this.markedToDelete = obj.markedToDelete;
+    }
+}
+
 //arg parsing
 ////////////////////////
 
@@ -28,7 +55,9 @@ const reservedWords = [
     "--ignore",
     "-o",
     "init",
-    "generate"
+    "generate",
+    "hub",
+    "--sort"
 ];
 
 let argument = [];
@@ -76,6 +105,7 @@ let deleted = [];
 let selected = 0;
 let querrying = false;
 let completeMode = true;
+let recentFiles= [];
 
 //command line 
 ////////////////////////
@@ -177,9 +207,18 @@ if (argument.includes("init")) {
     console.log("file ".yellow + (file??".todo.md").bold + " already exists".yellow);
     process.exit();
 }
+
+if (argument.includes("hub")) {
+    openRecentFile();
+    if (argument.includes("--sort"))
+        sortFiles();
+    //TODO: Implemetar o hub
+    process.exit();
+}
 //main
 ////////////////////////
 
+//TODO: melhorar implementação do register 
 function register() {
     process.stdin.on('keypress', (str, key) => {
         if (key.ctrl) {
@@ -246,6 +285,10 @@ async function initFile(pathName, initialD, name=".todo.md") {
 }
 
 function setup() {
+    openRecentFile();
+    addFileToRecent();
+    writeRecentFile();
+
     fs.readFile(file, function(err, data) {
         if (err) {
             cursor.show();
@@ -340,18 +383,17 @@ function printTodos() {
     console.log(`${mode}`);
 
     for (const v in todos) {
-        let a = `[${todos[v].completed?"x": " "}] ${todos[v].name}`;
-        a = v == selected ? a.bold : a;
-
-        if (todos[v].markedToDelete) {
-            a = a.red;
+        if (todos[v] instanceof TodoItem) {
+            let a = `[${todos[v].completed?"x": " "}] ${todos[v].name}`;
+            a = v == selected ? a.bold : a;
+    
+            if (todos[v].markedToDelete)
+                a = a.red;
+            else if (todos[v].completed)
+                a = a.green; 
+            
             console.log(`${v==selected?">": "-"} `.white + a);
-        } else if (todos[v].completed) {
-            a = a.green;
-            console.log(`${v==selected?">": "-"} `.white + a);
-        } else {
-            console.log(`${v==selected?">": "-"} `.white + a);
-        }
+        } 
     }
 
     let create = `create a new `.grey + 'todo'.blue.underline;
@@ -377,7 +419,9 @@ function addTodo(n, c = false, _isNew = false) {
         return false;
     }
     
-    todos.push({ name: n, completed: c, isNew: _isNew, markedToDelete: false });
+    const newTodo = new TodoItem({ name: n, completed: c, isNew: _isNew, markedToDelete: false });
+
+    todos.push(newTodo);
     return true;
 }
 
@@ -428,6 +472,68 @@ function showHelp() {
     "--ignore                              \t" +           "ignore 'todo generate' errors while reading files\n";
 
     console.log(helpMsg);
+}
+
+function openRecentFile() {
+    recentFiles = JSON.parse(
+        fs.readFileSync(path.join(__dirname, "./recent.json"), {
+            encoding: "utf8",
+            flag: "r",
+        })
+    );
+}
+
+function writeRecentFile() {
+    fs.writeFileSync(
+        path.join(__dirname, "./recent.json"),
+        JSON.stringify(recentFiles), {
+            encoding: "utf8",
+            flag: "w",
+        }
+    );
+}
+
+function addFileToRecent() {
+    recentFiles = recentFiles.filter(f => f.path !== file);
+    
+    recentFiles.unshift({
+        path: file,
+        last: Date.now()
+    }); 
+}
+
+function sortFiles() {
+    let arr = new Array();
+
+    for (const rFile of recentFiles) {
+        arr = sortingRecentList(arr, rFile);
+    }
+
+    console.log(arr);
+}
+
+/**
+ * 
+ * @param {{path: string, last: number}[]} arr 
+ * @param {{path: string, last: number}} file 
+ */
+function sortingRecentList(arr, f) {
+    const dateCompare = (d1, d2) => {
+        if(d1 == d2) return 0;
+        return (d1 > d2)?1:-1;
+    };
+
+    for (let i = 0; i < arr.length; i++) {
+        const cmp = dateCompare(arr[i].last, f.last);
+
+        if (cmp != -1) {
+            arr.insert(i, f);
+            return arr;
+        }
+    }
+
+    arr.push(f);
+    return arr;
 }
 
 setup();
