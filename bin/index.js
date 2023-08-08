@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-
 // Feito por: Nícolas dos Santos Carvalho (2022-2023)
 
 // TODO-CLI é um software de linha de comando para facilitar a criacao e manuseio
@@ -126,7 +125,7 @@ let selected = 0;
 let querrying = false;
 let completeMode = true;
 let recentFiles = [];
-let mode = 'TODO';
+let fileMode = 'TODO';
 
 let displayList = {
     'TODO': printTodos,
@@ -235,7 +234,7 @@ if (argument.includes("init")) {
 }
 
 if (argument.includes("hub")) {
-    mode = 'HUB';
+    fileMode = 'HUB';
 
     openRecentFile();
     if (argument.includes("--sort"))
@@ -249,7 +248,7 @@ if (argument.includes("hub")) {
 //TODO: melhorar implementação do register 
 function register(str, key) {
     if (querrying) {
-        if (key.name === "return" && mode === "TODO") {
+        if (key.name === "return" && fileMode === "TODO") {
             createTodo();
             querrying = false; 
         }
@@ -261,15 +260,15 @@ function register(str, key) {
     // process.exit();
     if (key.ctrl) {
         if (key.name === "c") {
-            if (mode === "HUB") writeRecentFile();
-            else if (mode === "TODO") saveTodo();
+            if (fileMode === "HUB") writeRecentFile();
+            else if (fileMode === "TODO") saveTodo();
         } else if (key.name === "up") {
             selected = 0;
-            displayList[mode]();
+            displayList[fileMode]();
         } else if (key.name === "down") {
-            if (mode === "HUB") selected = recentFiles.length + 1;
-            else if (mode === "TODO") selected = todos.length + 1;
-            displayList[mode]();
+            if (fileMode === "HUB") selected = recentFiles.length + 1;
+            else if (fileMode === "TODO") selected = todos.length + 1;
+            displayList[fileMode]();
         }
 
         return;
@@ -277,16 +276,16 @@ function register(str, key) {
 
     if (key.name === "up") {
         selected -= (selected - 1 < 0) ? 0 : 1;
-        displayList[mode]();
+        displayList[fileMode]();
     } else if (key.name === "down") {
         let limit = 0;
-        if (mode === "HUB") limit += recentFiles.length + 1;
-        if (mode === "TODO") limit = todos.length + 3;
+        if (fileMode === "HUB") limit += recentFiles.length + 1;
+        if (fileMode === "TODO") limit = todos.length + 3;
 
         selected += selected + 1 > limit ? 0 : 1;
-        displayList[mode]();
+        displayList[fileMode]();
     } else if (key.name === "space" || key.name === "return" || key.name === "enter") {
-        if (mode === "HUB") {
+        if (fileMode === "HUB") {
             const actions = [
                 () => {
                     writeRecentFile;
@@ -310,7 +309,7 @@ function register(str, key) {
                         file = recentFiles[selected].path;
                         recentFiles.length = 0;
                         setup();
-                        mode = "TODO";
+                        fileMode = "TODO";
                     }
                 }
                 else {
@@ -321,7 +320,7 @@ function register(str, key) {
             } else {
                 actions[selected-recentFiles.length]();
             }
-        } else if (mode === "TODO") {
+        } else if (fileMode === "TODO") {
             const actions = [
                 createTodo,
                 saveTodo,
@@ -347,7 +346,7 @@ function register(str, key) {
         }
     } else if (key.name === "right" || key.name === "left") {
         completeMode = key.name==="left";
-        displayList[mode]();
+        displayList[fileMode]();
     }
 }
 
@@ -379,7 +378,7 @@ function setup() {
         openRecentFile();
         addFileToRecent();
         // manipulacao do historico
-        if(mode === "TODO") {
+        if(fileMode === "TODO") {
             writeRecentFile();
         }
         
@@ -478,7 +477,7 @@ function printTodos() {
                 a = a.green; 
             
             console.log(`${v==selected?">": "-"} `.white + a);
-        } 
+        }
     }
 
     let create = `create a new `.grey + 'todo'.blue.underline;
@@ -521,21 +520,18 @@ function printHub() {
     for (const item of recentFiles) {
         if (item instanceof RecentItem) {
             const date = new Date(item.last);
-            let a =
-                `${item.id + 1}.\t` +
-                date.toDateString().grey +
-                "\t";
-            let path = (selected === item.id ? item.path : shortPath(item.path));
-                
+            let a = `${item.id + 1}.\t` + date.toDateString().grey + "\t";
+            let path = selected === item.id ? item.path : shortPath(item.path);
+    
             a = item.id == selected ? a.bold : a;
             path = item.id == selected ? path.bold : path;
-
+    
             if (item.markedToDelete) {
-                a = a.red; 
-                path = path.red; 
+                a = a.red;
+                path = path.red;
             }
-
-            console.log(a+path);
+    
+            console.log(`${item.id == selected?">": "-"} `.white + a + path);
         }
     }
 
@@ -578,7 +574,7 @@ function createTodo() {
 }
 
 function deleteMarked(arr) {
-    if (mode === "TODO")
+    if (fileMode === "TODO")
         deleted = arr.filter(v => v.markedToDelete);
     arr = arr.filter(v => !v.markedToDelete);
     selected = 0;
@@ -586,7 +582,7 @@ function deleteMarked(arr) {
 }
 
 function deleteCompleted(arr) {
-    if (mode === "TODO")
+    if (fileMode === "TODO")
         deleted = arr.filter(v => v.completed);
     arr = arr.filter(v => !v.completed);
     selected = 0;
@@ -686,7 +682,7 @@ function sortingRecentList(arr, f) {
     return arr;
 }
 
-if (mode == "TODO") {
+if (fileMode == "TODO") {
     setup();
 }
 process.stdin.on('keypress', register);
