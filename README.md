@@ -51,6 +51,13 @@ delete completed
 
 ## Patch Notes
 
+- ver 1.3.2
+  - updated readme
+- ver 1.3.1
+  - added "hub" command
+    - a hub to show recent todo files
+- ver 1.3
+  - 👻
 - ver 1.2
   - added generate command
     - it generate a todo based on //TODO: in your files
